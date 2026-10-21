@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # server.py is standard library only: no runtime dependencies to install.
+      - name: Byte-compile the server
+        run: python -m compileall -q server.py
+
+      - name: Server starts and answers
+        run: |
+          python server.py --port 8905 &
+          SERVER_PID=$!
+          sleep 2
+          curl -fsS http://127.0.0.1:8905/ | grep -q "<title>Dunwell"
+          curl -fsS http://127.0.0.1:8905/styles.css | grep -q "body"
+          # The waitlist count must be a JSON object with ok:true.
+          curl -fsS http://127.0.0.1:8905/api/waitlist/count \
+            | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
+          kill $SERVER_PID
+
+      - name: Private files are not served
+        run: |
+          python server.py --port 8906 &
+          SERVER_PID=$!
+          sleep 2
+          # server.py and the waitlist CSV must never be reachable over HTTP.
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8906/server.py)
+          test "$status" = "404"
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8906/data/waitlist.csv)
+          test "$status" = "404"
+          kill $SERVER_PID

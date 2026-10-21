@@ -1,0 +1,6 @@
+# Waitlist signups are private customer data — never commit them.
+data/
+
+# Local noise
+*.log
+__pycache__/
