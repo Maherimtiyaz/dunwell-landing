@@ -1,0 +1,55 @@
+name: Deploy landing to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push cancels an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Stage an explicit whitelist of public files.
+      #
+      # Uploading the repository root would publish server.py and
+      # data/waitlist.csv - the second one holds customer email addresses.
+      # The allowlist is deliberate: adding a file to the repo must not
+      # silently publish it.
+      - name: Stage the public site
+        run: |
+          mkdir -p _site
+          for f in index.html styles.css privacy.html terms.html favicon.ico; do
+            if [ -f "$f" ]; then
+              cp "$f" _site/
+            fi
+          done
+          ls -la _site
+          # Guard: nothing outside the whitelist may reach the artifact.
+          if [ -e _site/server.py ] || [ -d _site/data ] || [ -d _site/functions ]; then
+            echo "Refusing to publish: private files are present in _site"
+            exit 1
+          fi
+
+      # Pages serves the staged files and runs the functions/ directory as
+      # serverless routes: /api/waitlist and /api/waitlist/count.
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

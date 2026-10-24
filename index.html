@@ -622,6 +622,19 @@ Northwind Studio - Billing</div>
         var note = document.getElementById("form-note");
         var success = document.getElementById("form-success");
 
+        // Two backends can serve this page and they disagree on the error
+        // shape: this repo's server.py sends error as a string, while the
+        // Dunwell service sends error as {message, code}. Read both, or a
+        // validation error renders as "[object Object]".
+        function errorMessage(data) {
+          if (!data) return "";
+          if (typeof data.error === "string") return data.error;
+          if (data.error && typeof data.error.message === "string") {
+            return data.error.message;
+          }
+          return "";
+        }
+
         form.addEventListener("submit", function (e) {
           e.preventDefault();
           var value = (email.value || "").trim();
@@ -648,17 +661,34 @@ Northwind Studio - Billing</div>
             return;
           }
 
-          var ENDPOINT = "/api/waitlist";
+          // Resolve the endpoint against this page rather than hardcoding
+          // "/api/waitlist". The site is served from a domain root (a custom
+          // domain or the local server), from the Dunwell service, and from a
+          // GitHub project subpath (/dunwell-landing/) where an absolute
+          // path would land on the wrong host entirely.
+          var ENDPOINTS = [
+            new URL("api/waitlist", document.baseURI).pathname,
+            "/api/waitlist",
+          ];
           note.style.display = "block";
           note.textContent = "Joining…";
           note.style.color = "";
 
-          fetch(ENDPOINT, {
+          postWaitlist(ENDPOINTS, 0, value);
+        });
+
+        // Try each candidate endpoint in turn, but only move on when one
+        // answers 404. A real failure (429, 422, 500) is reported, not retried.
+        function postWaitlist(endpoints, index, email) {
+          fetch(endpoints[index], {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: value, source: "landing" }),
+            body: JSON.stringify({ email: email, source: "landing" }),
           })
             .then(function (res) {
+              if (res.status === 404 && index + 1 < endpoints.length) {
+                return postWaitlist(endpoints, index + 1, email);
+              }
               if (res.status === 429) {
                 fail("Too many attempts — please try again in a minute.");
                 return null;
@@ -672,7 +702,7 @@ Northwind Studio - Billing</div>
             .then(function (data) {
               if (!data) return;
               if (!data.ok) {
-                fail(data.error || "Something went wrong. Please try again.");
+                fail(errorMessage(data) || "Something went wrong. Please try again.");
                 return;
               }
               // Success: hide the form and the note, show the confirmation.
@@ -684,7 +714,7 @@ Northwind Studio - Billing</div>
             .catch(function () {
               fail("Could not reach the server. Please try again.");
             });
-        });
+        }
 
         var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (!reduce && "IntersectionObserver" in window) {

@@ -11,7 +11,7 @@ GET  /styles.css          -> styles.css (and other static files)
 GET  /api/waitlist/count  -> {"ok": true, "count": N}   (no emails exposed)
 POST /api/waitlist        -> {"email": ..., "source": ...}
                              -> {"ok": true, "count": N}
-                             -> {"ok": false, "error": "...", "code": "..."}
+                             -> {"ok": false, "error": {"message", "code"}}
 
 Signups append to data/waitlist.csv (email, source, ts) with in-memory
 dedupe + a small per-IP rate limit. The CSV is the export.
@@ -113,6 +113,14 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _error(self, status: int, message: str, code: str) -> None:
+        """The Dunwell service's error shape: error is an object.
+
+        Keeping both servers on one contract means this page works
+        unchanged whether it is served here or by the Dunwell service.
+        """
+        self._json(status, {"ok": False, "error": {"message": message, "code": code}})
+
     def _bytes(self, status: int, body: bytes, ctype: str, cache: bool = False) -> None:
         self.send_response(status)
         self.send_header("Content-Type", ctype)
@@ -139,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/api/"):
-            self._json(404, {"ok": False, "error": "Not found", "code": "not_found"})
+            self._error(404, "Not found", "not_found")
             return
 
         if path in ("/", ""):
@@ -194,37 +202,31 @@ class Handler(BaseHTTPRequestHandler):
         raw = self._read_body()
 
         if path != "/api/waitlist":
-            self._json(404, {"ok": False, "error": "Not found", "code": "not_found"})
+            self._error(404, "Not found", "not_found")
             return
 
         if raw is None:
-            self._json(400, {"ok": False, "error": "Bad request", "code": "bad_request"})
+            self._error(400, "Bad request", "bad_request")
             return
 
         ip = self.client_address[0]
         if _rate_limited(ip):
-            self._json(429, {
-                "ok": False,
-                "error": "Too many attempts. Please try again in a minute.",
-                "code": "rate_limited",
-            })
+            self._error(
+                429, "Too many attempts. Please try again in a minute.", "rate_limited"
+            )
             return
 
         try:
             data = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
-            self._json(400, {"ok": False, "error": "Bad request", "code": "bad_request"})
+            self._error(400, "Bad request", "bad_request")
             return
 
         email = str(data.get("email", "")).strip().lower()
         source = str(data.get("source", "landing")).strip()[:64] or "landing"
 
         if not EMAIL_RE.match(email) or len(email) > 254:
-            self._json(422, {
-                "ok": False,
-                "error": "Please enter a valid email address.",
-                "code": "invalid_email",
-            })
+            self._error(422, "Please enter a valid email address.", "invalid_email")
             return
 
         with _lock:

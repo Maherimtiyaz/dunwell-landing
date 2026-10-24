@@ -37,6 +37,20 @@ jobs:
             | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
           kill $SERVER_PID
 
+      - name: Error shape matches the Dunwell service contract
+        # The page is served either by this server or by the Dunwell service.
+        # Both must answer with error as an object, or the form renders
+        # "[object Object]" when it is hosted by the service.
+        run: |
+          python server.py --port 8907 &
+          SERVER_PID=$!
+          sleep 2
+          curl -fsS -X POST http://127.0.0.1:8907/api/waitlist \
+            -H "Content-Type: application/json" \
+            -d '{"email":"nope"}' \
+            | grep -Eq '"error"[[:space:]]*:[[:space:]]*\{'
+          kill $SERVER_PID
+
       - name: Private files are not served
         run: |
           python server.py --port 8906 &
@@ -47,4 +61,16 @@ jobs:
           test "$status" = "404"
           status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8906/data/waitlist.csv)
           test "$status" = "404"
+          kill $SERVER_PID
+
+      - name: Pages Functions proxy contract
+        # Runs the real functions/ modules against a real conforming backend.
+        # server.py speaks the same contract as the Dunwell service, so this
+        # needs no external dependency, yet still proves the proxy path that
+        # GitHub Pages will use in production.
+        run: |
+          python server.py --port 8908 &
+          SERVER_PID=$!
+          sleep 2
+          DUNWELL_API_URL=http://127.0.0.1:8908 node proxy-test.mjs
           kill $SERVER_PID
