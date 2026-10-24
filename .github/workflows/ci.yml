@@ -41,14 +41,19 @@ jobs:
         # The page is served either by this server or by the Dunwell service.
         # Both must answer with error as an object, or the form renders
         # "[object Object]" when it is hosted by the service.
+        #
+        # No curl -f here: an invalid email answers 422 by design, and -f
+        # would treat that intended status as a transport failure.
         run: |
           python server.py --port 8907 &
           SERVER_PID=$!
           sleep 2
-          curl -fsS -X POST http://127.0.0.1:8907/api/waitlist \
+          body=$(curl -sS -X POST http://127.0.0.1:8907/api/waitlist \
             -H "Content-Type: application/json" \
-            -d '{"email":"nope"}' \
-            | grep -Eq '"error"[[:space:]]*:[[:space:]]*\{'
+            -d '{"email":"nope"}')
+          echo "response: $body"
+          echo "$body" | grep -Eq '"error"[[:space:]]*:[[:space:]]*\{'
+          echo "$body" | grep -Eq '"code"[[:space:]]*:[[:space:]]*"invalid_email"'
           kill $SERVER_PID
 
       - name: Private files are not served
