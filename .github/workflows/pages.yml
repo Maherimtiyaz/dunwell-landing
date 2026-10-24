@@ -24,20 +24,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Stage an explicit whitelist of public files.
+      # GitHub Pages is static-only: it cannot run server code, so the
+      # waitlist form posts straight to the Dunwell service and the service
+      # allows this origin via DUNWELL_CORS_ORIGINS.
       #
-      # Uploading the repository root would publish server.py and
-      # data/waitlist.csv - the second one holds customer email addresses.
-      # The allowlist is deliberate: adding a file to the repo must not
-      # silently publish it.
+      # Stage an explicit whitelist of public files. Uploading the repository
+      # root would publish server.py and data/waitlist.csv - the second one
+      # holds customer email addresses.
       - name: Stage the public site
         run: |
           mkdir -p _site
-          for f in index.html styles.css privacy.html terms.html favicon.ico; do
+          for f in index.html styles.css privacy.html terms.html favicon.ico config.js; do
             if [ -f "$f" ]; then
               cp "$f" _site/
             fi
           done
+
+          # Write the API origin into config.js so the static page knows where
+          # to post. Set DUNWELL_API_URL under:
+          #   Settings > Secrets and variables > Actions > Variables
+          API_URL="${{ vars.DUNWELL_API_URL }}"
+          if [ -n "$API_URL" ]; then
+            API_URL="${API_URL%/}"
+            printf 'window.DUNWELL_API_URL = "%s";\n' "$API_URL" > _site/config.js
+            echo "Waitlist API: $API_URL"
+          else
+            echo "::warning::DUNWELL_API_URL is not set - the form will report that the waitlist is not connected."
+          fi
+
           ls -la _site
           # Guard: nothing outside the whitelist may reach the artifact.
           if [ -e _site/server.py ] || [ -d _site/data ] || [ -d _site/functions ]; then
@@ -45,8 +59,6 @@ jobs:
             exit 1
           fi
 
-      # Pages serves the staged files and runs the functions/ directory as
-      # serverless routes: /api/waitlist and /api/waitlist/count.
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

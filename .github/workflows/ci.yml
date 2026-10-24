@@ -67,15 +67,3 @@ jobs:
           status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8906/data/waitlist.csv)
           test "$status" = "404"
           kill $SERVER_PID
-
-      - name: Pages Functions proxy contract
-        # Runs the real functions/ modules against a real conforming backend.
-        # server.py speaks the same contract as the Dunwell service, so this
-        # needs no external dependency, yet still proves the proxy path that
-        # GitHub Pages will use in production.
-        run: |
-          python server.py --port 8908 &
-          SERVER_PID=$!
-          sleep 2
-          DUNWELL_API_URL=http://127.0.0.1:8908 node proxy-test.mjs
-          kill $SERVER_PID

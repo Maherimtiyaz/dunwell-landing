@@ -615,6 +615,7 @@ Northwind Studio - Billing</div>
       </div>
     </footer>
 
+    <script src="config.js"></script>
     <script>
       (function () {
         var form = document.getElementById("waitlist-form");
@@ -661,15 +662,20 @@ Northwind Studio - Billing</div>
             return;
           }
 
-          // Resolve the endpoint against this page rather than hardcoding
-          // "/api/waitlist". The site is served from a domain root (a custom
-          // domain or the local server), from the Dunwell service, and from a
-          // GitHub project subpath (/dunwell-landing/) where an absolute
-          // path would land on the wrong host entirely.
-          var ENDPOINTS = [
-            new URL("api/waitlist", document.baseURI).pathname,
-            "/api/waitlist",
-          ];
+          // Where to post the sign-up.
+          //
+          // If config.js names an API host (GitHub Pages points this at the
+          // Dunwell service), post there directly; the service answers the
+          // CORS preflight for the origins it is configured to trust.
+          // Otherwise stay same-origin, which is what server.py and the
+          // service's own landing route both provide.
+          var API_BASE = String(window.DUNWELL_API_URL || "").replace(/\/+$/, "");
+          var ENDPOINTS = API_BASE
+            ? [API_BASE + "/api/waitlist"]
+            : [
+                new URL("api/waitlist", document.baseURI).pathname,
+                "/api/waitlist",
+              ];
           note.style.display = "block";
           note.textContent = "Joining…";
           note.style.color = "";
@@ -677,8 +683,9 @@ Northwind Studio - Billing</div>
           postWaitlist(ENDPOINTS, 0, value);
         });
 
-        // Try each candidate endpoint in turn, but only move on when one
-        // answers 404. A real failure (429, 422, 500) is reported, not retried.
+        // Try each candidate in turn. A static host answers HTML, not JSON,
+        // so a non-JSON reply means "this is not the API" - move on to the
+        // next candidate, or say plainly that nothing is connected yet.
         function postWaitlist(endpoints, index, email) {
           fetch(endpoints[index], {
             method: "POST",
@@ -686,8 +693,14 @@ Northwind Studio - Billing</div>
             body: JSON.stringify({ email: email, source: "landing" }),
           })
             .then(function (res) {
-              if (res.status === 404 && index + 1 < endpoints.length) {
-                return postWaitlist(endpoints, index + 1, email);
+              var isJson =
+                (res.headers.get("content-type") || "").indexOf("application/json") !== -1;
+              if (!isJson) {
+                if (index + 1 < endpoints.length) {
+                  return postWaitlist(endpoints, index + 1, email);
+                }
+                fail("The waitlist is not connected yet. Please try again later.");
+                return null;
               }
               if (res.status === 429) {
                 fail("Too many attempts — please try again in a minute.");
