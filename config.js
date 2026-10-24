@@ -1,10 +1,16 @@
-// Where the waitlist API lives.
+// Deployment settings for the static page.
 //
-// Committed empty so local development stays same-origin (server.py serves
-// the form and the API from one place). The GitHub Pages workflow rewrites
-// this file at deploy time from the DUNWELL_API_URL repository variable, e.g.
+// Committed with empty values so local development stays same-origin
+// (server.py serves the page and the API from one place). The GitHub Pages
+// workflow rewrites this file at deploy time from repository variables:
 //
-//   window.DUNWELL_API_URL = "https://app.dunwell.app";
+//   Settings > Secrets and variables > Actions > Variables
 //
-// Leave it empty when the landing and the API share an origin.
+//   DUNWELL_API_URL   the Dunwell service origin, e.g. https://app.dunwell.app
+//   DUNWELL_DEMO_URL  a YouTube/Vimeo link, or a direct .mp4
+//
+// Empty values are safe:
+//   - no API URL  -> the form falls back to same-origin
+//   - no demo URL -> the "watch the demo" button stays hidden
 window.DUNWELL_API_URL = "";
+window.DUNWELL_DEMO_URL = "";

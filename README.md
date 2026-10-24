@@ -93,15 +93,22 @@ The service is authoritative, so there is one store and one backup.
    Only the public waitlist routes honour CORS; the authenticated API stays
    same-origin. Use your custom domain here instead once you add one.
 
-3. **Point the page at the service.** Add a repository **variable**
+3. **Point the page at the service.** Add repository **variables**
    (Settings → Secrets and variables → Actions → **Variables** tab):
 
    | Name | Value |
    | --- | --- |
    | `DUNWELL_API_URL` | `https://app.dunwell.app` |
+   | `DUNWELL_DEMO_URL` | optional — a demo video, see below |
 
-   The Pages workflow writes it into `config.js` at deploy time. It is a
-   public URL, so a variable is enough — no secret needed.
+   The Pages workflow writes both into `config.js` at deploy time. They are
+   public values, so variables are enough — no secret needed.
+
+   `DUNWELL_DEMO_URL` enables the **"Watch the 40-second demo"** button above
+   the waitlist form. Accepts a YouTube or Vimeo link (share links are
+   rewritten to embed URLs at click time) or a direct `.mp4`/`.webm` file.
+   Leave it unset and the button stays hidden — the page never advertises a
+   demo that does not exist.
 
 4. **Enable Pages.** Already done for this repo: **Settings → Pages → Source →
    GitHub Actions**. The site is at

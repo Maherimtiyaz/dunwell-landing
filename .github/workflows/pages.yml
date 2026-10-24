@@ -40,16 +40,40 @@ jobs:
             fi
           done
 
-          # Write the API origin into config.js so the static page knows where
-          # to post. Set DUNWELL_API_URL under:
+          # Write config.js from repository variables so the static page knows
+          # where to post and which demo video to show. Set both under:
           #   Settings > Secrets and variables > Actions > Variables
+          #
+          #   DUNWELL_API_URL   e.g. https://app.dunwell.app
+          #   DUNWELL_DEMO_URL  a YouTube/Vimeo link, or a direct .mp4
           API_URL="${{ vars.DUNWELL_API_URL }}"
+          DEMO_URL="${{ vars.DUNWELL_DEMO_URL }}"
+          API_URL="${API_URL%/}"
+
+          {
+            echo "// Generated at deploy time. Edits here are overwritten."
+            if [ -n "$API_URL" ]; then
+              printf 'window.DUNWELL_API_URL = "%s";\n' "$API_URL"
+            else
+              echo 'window.DUNWELL_API_URL = "";'
+            fi
+            if [ -n "$DEMO_URL" ]; then
+              printf 'window.DUNWELL_DEMO_URL = "%s";\n' "$DEMO_URL"
+            else
+              echo 'window.DUNWELL_DEMO_URL = "";'
+            fi
+          } > _site/config.js
+
           if [ -n "$API_URL" ]; then
-            API_URL="${API_URL%/}"
-            printf 'window.DUNWELL_API_URL = "%s";\n' "$API_URL" > _site/config.js
             echo "Waitlist API: $API_URL"
           else
             echo "::warning::DUNWELL_API_URL is not set - the form will report that the waitlist is not connected."
+          fi
+
+          if [ -n "$DEMO_URL" ]; then
+            echo "Demo video: $DEMO_URL"
+          else
+            echo "DUNWELL_DEMO_URL is not set - the demo button stays hidden."
           fi
 
           ls -la _site

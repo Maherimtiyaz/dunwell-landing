@@ -1011,3 +1011,152 @@ details p {
   color: var(--color-ink-faint);
   margin-top: 2.5rem;
 }
+
+/* ---------- Demo video ---------- */
+
+/* Author styles beat the UA [hidden] rule, so state it explicitly or the
+   slot would render empty before a video is configured. */
+.demo-cta[hidden],
+.demo-modal[hidden] {
+  display: none;
+}
+
+.demo-cta {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 1.6rem;
+}
+
+.demo-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  height: 2.6rem;
+  padding: 0 0.9rem 0 0.55rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.demo-play:hover {
+  border-color: var(--color-brand);
+  background: var(--color-surface-2);
+}
+
+.demo-play:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.demo-play-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: #fff;
+  padding-left: 1px;
+}
+
+.demo-duration {
+  padding-left: 0.65rem;
+  border-left: 1px solid var(--color-line);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+}
+
+.demo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.demo-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.demo-modal-panel {
+  position: relative;
+  width: min(56rem, 100%);
+  border: 1px solid var(--color-line);
+  border-radius: 0.9rem;
+  background: var(--color-surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.demo-modal-body {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.demo-modal-body video,
+.demo-modal-body iframe {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.demo-modal-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.18s ease;
+}
+
+.demo-modal-close:hover,
+.demo-modal-close:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+body.demo-modal-open {
+  overflow: hidden;
+}
+
+@media (max-width: 560px) {
+  .demo-modal {
+    padding: 0.75rem;
+  }
+
+  .demo-play {
+    font-size: 0.85rem;
+  }
+}
+

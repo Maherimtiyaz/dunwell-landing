@@ -37,6 +37,19 @@ jobs:
             | grep -Eq '"ok"[[:space:]]*:[[:space:]]*true'
           kill $SERVER_PID
 
+      - name: Demo slot is wired
+        # The lightbox script returns early when any of these elements is
+        # missing, so a refactor could delete the markup and nothing would
+        # fail until someone set DUNWELL_DEMO_URL and saw no button.
+        run: |
+          grep -q 'id="demo-cta"' index.html
+          grep -q 'id="demo-modal"' index.html
+          grep -q 'id="demo-modal-body"' index.html
+          grep -q 'DUNWELL_DEMO_URL' config.js
+          # Hidden by default: the button is revealed by JS only once a video
+          # URL exists, so the page never advertises a demo that does not.
+          grep -q 'demo-cta" id="demo-cta" hidden' index.html
+
       - name: Error shape matches the Dunwell service contract
         # The page is served either by this server or by the Dunwell service.
         # Both must answer with error as an object, or the form renders

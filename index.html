@@ -561,6 +561,27 @@ Northwind Studio - Billing</div>
           Join the early access list. First 10 customers get 50% off for life,
           and get hands-on onboarding onto their own ledger.
         </p>
+
+        <!-- Revealed only when config.js names a video, so the page never
+             advertises a demo that does not exist. -->
+        <div class="demo-cta" id="demo-cta" hidden>
+          <button
+            class="demo-play"
+            type="button"
+            id="demo-play"
+            aria-haspopup="dialog"
+            aria-controls="demo-modal"
+          >
+            <span class="demo-play-icon" aria-hidden="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+            Watch the 40-second demo
+            <span class="demo-duration">0:40</span>
+          </button>
+        </div>
+
         <form class="waitlist-form" id="waitlist-form" novalidate>
           <input
             type="email"
@@ -614,6 +635,28 @@ Northwind Studio - Billing</div>
         </div>
       </div>
     </footer>
+
+    <!-- Demo lightbox. Empty until opened; the media node is removed on
+         close so nothing keeps playing in the background. -->
+    <div class="demo-modal" id="demo-modal" hidden>
+      <div class="demo-modal-backdrop" data-demo-close></div>
+      <div
+        class="demo-modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Dunwell demo"
+      >
+        <button
+          class="demo-modal-close"
+          type="button"
+          id="demo-modal-close"
+          aria-label="Close demo"
+        >
+          &times;
+        </button>
+        <div class="demo-modal-body" id="demo-modal-body"></div>
+      </div>
+    </div>
 
     <script src="config.js"></script>
     <script>
@@ -752,6 +795,125 @@ Northwind Studio - Billing</div>
             io.observe(el);
           });
         }
+      })();
+    </script>
+
+    <script>
+      // Demo lightbox. Kept separate from the waitlist form so a problem with
+      // one cannot break the other.
+      (function () {
+        var cta = document.getElementById("demo-cta");
+        var trigger = document.getElementById("demo-play");
+        var modal = document.getElementById("demo-modal");
+        var stage = document.getElementById("demo-modal-body");
+        var closeBtn = document.getElementById("demo-modal-close");
+        if (!cta || !trigger || !modal || !stage || !closeBtn) return;
+
+        var url = String(window.DUNWELL_DEMO_URL || "").trim();
+        // No video configured: leave the slot hidden rather than offer a
+        // button that opens an empty box.
+        if (!url) return;
+
+        cta.hidden = false;
+
+        // Share links are not embeddable as-is; rewrite the common ones.
+        function embedUrl(raw) {
+          var yt = raw.match(
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+          );
+          if (yt) return "https://www.youtube.com/embed/" + yt[1] + "?rel=0";
+          var vimeo = raw.match(/vimeo\.com\/(\d+)/);
+          if (vimeo) return "https://player.vimeo.com/video/" + vimeo[1];
+          return raw;
+        }
+
+        function isVideoFile(raw) {
+          return /\.(mp4|webm|ogv|ogg|mov)(\?|#|$)/i.test(raw);
+        }
+
+        var lastFocus = null;
+        var onKeydown = null;
+
+        function open() {
+          // Restore focus to the trigger when the dialog closes. Reading
+          // document.activeElement is not reliable: Safari does not focus a
+          // button on click, so focus would land back on <body>.
+          lastFocus = trigger;
+          stage.textContent = "";
+
+          if (isVideoFile(url)) {
+            var video = document.createElement("video");
+            video.src = url;
+            video.controls = true;
+            video.autoplay = true;
+            video.setAttribute("playsinline", "");
+            stage.appendChild(video);
+            var attempt = video.play();
+            if (attempt && typeof attempt.catch === "function") {
+              attempt.catch(function () {
+                // Autoplay refused; the controls are there, so leave it.
+              });
+            }
+          } else {
+            var frame = document.createElement("iframe");
+            frame.src = embedUrl(url);
+            frame.title = "Dunwell demo";
+            frame.allow = "autoplay; fullscreen; picture-in-picture";
+            frame.setAttribute("allowfullscreen", "");
+            stage.appendChild(frame);
+          }
+
+          modal.hidden = false;
+          document.body.classList.add("demo-modal-open");
+          closeBtn.focus();
+
+          onKeydown = function (e) {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              close();
+              return;
+            }
+            if (e.key !== "Tab") return;
+            // Keep tabbing inside the dialog.
+            var items = modal.querySelectorAll(
+              "button, iframe, video, [href], [tabindex]:not([tabindex='-1'])"
+            );
+            if (!items.length) return;
+            var first = items[0];
+            var last = items[items.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          };
+          document.addEventListener("keydown", onKeydown);
+        }
+
+        function close() {
+          modal.hidden = true;
+          // Removing the node is what actually stops playback.
+          stage.textContent = "";
+          document.body.classList.remove("demo-modal-open");
+          if (onKeydown) {
+            document.removeEventListener("keydown", onKeydown);
+            onKeydown = null;
+          }
+          if (lastFocus && typeof lastFocus.focus === "function") {
+            lastFocus.focus();
+          }
+        }
+
+        trigger.addEventListener("click", open);
+        closeBtn.addEventListener("click", close);
+        Array.prototype.forEach.call(
+          modal.querySelectorAll("[data-demo-close]"),
+          function (el) {
+            el.addEventListener("click", close);
+          }
+        );
       })();
     </script>
   </body>
