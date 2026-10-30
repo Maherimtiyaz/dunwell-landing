@@ -50,6 +50,19 @@ jobs:
           # URL exists, so the page never advertises a demo that does not.
           grep -q 'demo-cta" id="demo-cta" hidden' index.html
 
+      - name: Brand assets exist and are staged
+        # The Pages workflow publishes an explicit whitelist, not the working
+        # tree. A referenced icon that is missing from that list works locally
+        # and 404s in production, which is invisible unless you open devtools.
+        run: |
+          for f in icon.svg logo.svg favicon.ico apple-touch-icon.png; do
+            test -s "$f" || { echo "missing or empty: $f"; exit 1; }
+            grep -q "$f" .github/workflows/pages.yml \
+              || { echo "$f is not staged by pages.yml"; exit 1; }
+          done
+          grep -q 'rel="icon"' index.html
+          grep -q 'rel="apple-touch-icon"' index.html
+
       - name: Error shape matches the Dunwell service contract
         # The page is served either by this server or by the Dunwell service.
         # Both must answer with error as an object, or the form renders

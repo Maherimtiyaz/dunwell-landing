@@ -137,18 +137,24 @@ p {
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.55rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
+/* The mark carries its own tile, so there is no background here - a second
+   rounded square behind it showed at the corners. */
 .brand-mark {
+  display: block;
+  flex: none;
   width: 1.5rem;
   height: 1.5rem;
-  border-radius: 0.45rem;
-  background: linear-gradient(135deg, var(--color-brand), #8b5cf6);
-  display: grid;
-  place-items: center;
+}
+
+.brand-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .nav-links {

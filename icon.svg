@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Dunwell">
+  <rect width="32" height="32" rx="9" fill="#6366f1"/>
+  <path fill="#fff" d="M10.2 6H13.25V26H10.2A1.2 1.2 0 0 1 9 24.8V7.2A1.2 1.2 0 0 1 10.2 6Z"/>
+  <path fill="#fff" d="M13 6A10 10 0 0 1 13 26L13 22A6 6 0 0 0 13 10Z"/>
+</svg>

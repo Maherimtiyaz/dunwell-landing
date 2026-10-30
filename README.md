@@ -54,6 +54,23 @@ emails are not publicly readable.
 - The recovery-report figure in the hero is the real output of the demo engine
   in `D:\dunwell` (`python -m dunwell --as-of 2026-10-16`).
 
+## Brand assets
+
+| File | What it is |
+| --- | --- |
+| `icon.svg` | the mark: a geometric D on a 9px-radius tile, 32-unit grid |
+| `logo.svg` | horizontal lockup; wordmark is `#111` for light backgrounds |
+| `favicon.ico` | 16, 32, and 48px renders of the mark |
+| `apple-touch-icon.png` | 180px render, opaque, no transparency |
+
+The header and footer render the mark inline (so CSS can size it) and the
+wordmark as live text, so it inherits the page font and weight. `logo.svg` is
+for anything outside the page: a README, a press kit, a social avatar.
+
+The mark is drawn from two shapes - a stem with rounded outer corners and a
+half-annulus bowl - on a 32-unit grid. Keep new sizes on that grid, or the
+stroke weight drifts.
+
 ---
 
 # Distribution

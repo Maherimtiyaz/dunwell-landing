@@ -34,7 +34,7 @@ jobs:
       - name: Stage the public site
         run: |
           mkdir -p _site
-          for f in index.html styles.css privacy.html terms.html favicon.ico config.js; do
+          for f in index.html styles.css privacy.html terms.html favicon.ico icon.svg logo.svg apple-touch-icon.png config.js; do
             if [ -f "$f" ]; then
               cp "$f" _site/
             fi
