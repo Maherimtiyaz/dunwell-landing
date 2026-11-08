@@ -767,8 +767,9 @@ Northwind Studio - Billing</div>
               // second message.
               var successText = document.getElementById("form-success-text");
               if (data.welcome) {
-                successText.textContent =
-                  "You're on the list — a confirmation is on its way to your inbox.";
+                successText.textContent = data.mail === "recorded"
+                  ? "You're on the list. Email delivery is not configured on this server, so no message was sent."
+                  : "You're on the list — a confirmation is on its way to your inbox.";
               } else if (data.already) {
                 successText.textContent =
                   "You're already on the list — no need to sign up again.";
