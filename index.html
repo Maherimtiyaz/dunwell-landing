@@ -601,7 +601,7 @@ Northwind Studio - Billing</div>
         </div>
         <div class="form-success" id="form-success" role="status" aria-live="polite">
           <span aria-hidden="true">✓</span>
-          You're on the list — we'll reach out with your onboarding link.
+          <span id="form-success-text">You're on the list — we'll reach out with your onboarding link.</span>
         </div>
       </div>
     </section>
@@ -762,6 +762,17 @@ Northwind Studio - Billing</div>
                 return;
               }
               // Success: hide the form and the note, show the confirmation.
+              // Only promise an email when the API says one was queued; a
+              // repeat sign-up for an address already welcomed gets no
+              // second message.
+              var successText = document.getElementById("form-success-text");
+              if (data.welcome) {
+                successText.textContent =
+                  "You're on the list — a confirmation is on its way to your inbox.";
+              } else if (data.already) {
+                successText.textContent =
+                  "You're already on the list — no need to sign up again.";
+              }
               form.style.display = "none";
               note.style.display = "none";
               success.style.display = "block";

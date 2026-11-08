@@ -20,6 +20,18 @@ Then open http://127.0.0.1:8905
 - accepts `POST /api/waitlist` and appends signups to `data/waitlist.csv`
 - exposes `GET /api/waitlist/count` (count only — never emails)
 
+It **does not send email**. The branded confirmation is sent by the Dunwell
+service after it stores the address, so a production form must post to the
+service (set `window.DUNWELL_API_URL` in `config.js`). To test the full form
+and email locally, run this from `D:\dunwell` instead:
+
+```powershell
+python -m dunwell.serve --port 8906
+```
+
+That serves this directory *and* answers `/api/waitlist`. Configure
+`DUNWELL_MAIL_MODE` first; see `deploy.md` section 10.
+
 ## Endpoints
 
 | Method | Path                   | Body                        | Response                          |
