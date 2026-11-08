@@ -40,6 +40,9 @@ MAX_BODY = 16 * 1024
 RATE_WINDOW = 60.0
 RATE_MAX = 10  # requests per IP per window
 
+# Only what the page actually references. README.md, *.json, and *.txt are
+# deliberately absent: there is no reason to publish repository documents
+# from the marketing host.
 STATIC_TYPES = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
@@ -47,10 +50,54 @@ STATIC_TYPES = {
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".ico": "image/x-icon",
-    ".json": "application/json; charset=utf-8",
-    ".txt": "text/plain; charset=utf-8",
-    ".md": "text/markdown; charset=utf-8",
 }
+
+# connect-src is https: rather than 'self' because the form may legitimately
+# post to a separately hosted Dunwell service (config.js).
+SECURITY_HEADERS = (
+    ("X-Content-Type-Options", "nosniff"),
+    ("X-Frame-Options", "DENY"),
+    ("Referrer-Policy", "strict-origin-when-cross-origin"),
+    ("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()"),
+    (
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "connect-src 'self' https:; "
+        "frame-src https://www.youtube.com https://www.youtube-nocookie.com "
+        "https://player.vimeo.com; "
+        "media-src 'self' https:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'none'; "
+        "form-action 'self'; "
+        "object-src 'none'",
+    ),
+)
+
+# Excel executes a cell starting with one of these. A waitlist address is
+# attacker-supplied, and the CSV is opened in a spreadsheet by the operator.
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: object) -> str:
+    text = str(value)
+    if text and text[0] in _CSV_FORMULA_PREFIXES:
+        return "'" + text
+    return text
+
+
+def _csv_unsafe(value: str) -> str:
+    """Undo the spreadsheet guard when reading a row back for dedupe."""
+    if (
+        len(value) > 1
+        and value[0] == "'"
+        and value[1] in _CSV_FORMULA_PREFIXES
+    ):
+        return value[1:]
+    return value
 
 _lock = threading.Lock()
 _hits: dict[str, list[float]] = {}
@@ -65,6 +112,11 @@ def _rate_limited(ip: str) -> bool:
             return True
         stamps.append(now)
         _hits[ip] = stamps
+        # Bound memory: a flood of unique addresses must not grow this map
+        # without limit. Prune keys whose newest hit has aged out.
+        if len(_hits) > 10_000:
+            for key in [k for k, v in _hits.items() if not v or now - v[-1] >= RATE_WINDOW]:
+                _hits.pop(key, None)
     return False
 
 
@@ -74,7 +126,11 @@ def _load_emails() -> set[str]:
     # utf-8-sig tolerates a BOM if the CSV was created by an external editor
     # (PowerShell's Set-Content, Excel) and would otherwise hide the header.
     with open(WAITLIST_CSV, newline="", encoding="utf-8-sig") as f:
-        return {row["email"].strip().lower() for row in csv.DictReader(f) if row.get("email")}
+        return {
+            _csv_unsafe(row["email"].strip().lower())
+            for row in csv.DictReader(f)
+            if row.get("email")
+        }
 
 
 def _append_signup(email: str, source: str) -> int:
@@ -94,15 +150,32 @@ def _append_signup(email: str, source: str) -> int:
         writer = csv.writer(f)
         if is_new:
             writer.writerow(["email", "source", "ts"])
-        writer.writerow([email, source, datetime.now(timezone.utc).isoformat(timespec="seconds")])
+        writer.writerow(
+            [
+                _csv_safe(email),
+                _csv_safe(source),
+                datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            ]
+        )
     return len(_load_emails())
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "DunwellLanding/1.0"
+    server_version = "dunwell-landing"
+    sys_version = ""
     protocol_version = "HTTP/1.1"
 
     # ----- plumbing -------------------------------------------------
+
+    def _secure(self) -> bool:
+        proto = (self.headers.get("X-Forwarded-Proto") or "")
+        return proto.split(",")[0].strip().lower() == "https"
+
+    def _security_headers(self) -> None:
+        for name, value in SECURITY_HEADERS:
+            self.send_header(name, value)
+        if self._secure():
+            self.send_header("Strict-Transport-Security", "max-age=31536000")
 
     def _json(self, status: int, payload: dict) -> None:
         body = json.dumps(payload).encode("utf-8")
@@ -110,6 +183,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self._security_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -125,9 +199,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("X-Content-Type-Options", "nosniff")
         if not cache:
             self.send_header("Cache-Control", "no-store")
+        self._security_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -182,6 +256,11 @@ class Handler(BaseHTTPRequestHandler):
         connection (surfacing as a spurious 501). Returns None when the body is
         absent or over the cap.
         """
+        # http.server does not decode chunked bodies; a chunked request would
+        # otherwise leave bytes on a keep-alive socket and desync the next one.
+        if self.headers.get("Transfer-Encoding"):
+            self.close_connection = True
+            return None
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:

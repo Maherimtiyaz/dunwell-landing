@@ -1,0 +1,17 @@
+# Never upload these to Vercel's static host.
+#
+# The site needs only the HTML, CSS, JS, and image assets. server.py is the
+# local preview server (source code, no reason to publish it), and data/ holds
+# waitlist email addresses when the preview server has been run locally.
+# Git-integration deploys already exclude ignored paths, but a `vercel` CLI
+# deploy uploads the working tree, so this list is the belt to .gitignore's
+# braces.
+server.py
+README.md
+data/
+.github/
+.git/
+.gitignore
+.gitattributes
+__pycache__/
+*.log
